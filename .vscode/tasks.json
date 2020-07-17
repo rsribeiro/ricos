@@ -1,0 +1,28 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Launch QEMU",
+        "type": "shell",
+        "osx": {
+            "command": "tmux new-session -d -s osdev && tmux send-keys 'cargo run -- -s -S' C-m"
+            // "command": "cargo run -- -s -S"
+        },
+        "options": {
+          "cwd": "${workspaceFolder}/"
+        }
+      },
+      {
+        "label": "Close QEMU",
+        "type": "shell",
+        "osx": {
+          "command": "tmux kill-session -t osdev"
+        },
+        "options": {
+          "cwd": "${workspaceFolder}/"
+        }
+      }
+    ]
+  }
+  
+  
