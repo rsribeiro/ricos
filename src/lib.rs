@@ -114,7 +114,7 @@ pub fn exit_qemu(exit_code: QemuExitCode) {
     unsafe { port.write(exit_code as u32); }
 }
 
-pub fn exit() {
+pub fn exit() -> ! {
     // https://wiki.osdev.org/Shutdown
     log::trace!("trying to shutdown assuming QEMU");
     unsafe { Port::<u16>::new(0x604).write(0x2000) };
@@ -125,5 +125,5 @@ pub fn exit() {
     log::trace!("trying to shutdown assuming VirtualBox");
     unsafe { Port::<u16>::new(0x4004).write(0x3400) };
 
-    error_println!("Shutdown failed");
+    panic!("Shutdown failed")
 }

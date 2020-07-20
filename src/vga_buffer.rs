@@ -29,14 +29,14 @@ macro_rules! println {
 }
 
 #[macro_export]
-macro_rules! error_print {
+macro_rules! eprint {
     ($($arg:tt)*) => ($crate::vga_buffer::_print_error(format_args!($($arg)*)));
 }
 
 #[macro_export]
-macro_rules! error_println {
-    () => ($crate::error_print!("\n"));
-    ($($arg:tt)*) => ($crate::error_print!("{}\n", format_args!($($arg)*)));
+macro_rules! eprintln {
+    () => ($crate::print!("\n"));
+    ($($arg:tt)*) => ($crate::eprint!("{}\n", format_args!($($arg)*)));
 }
 
 #[allow(dead_code)]
@@ -123,7 +123,7 @@ impl ColorCode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
 struct ScreenChar {
-    ascii_character: u8,
+    cp437_character: u8,
     color_code: ColorCode,
 }
 
@@ -206,7 +206,7 @@ impl Writer {
 
                 let color_code = ColorCode::new(self.foreground, self.background);
                 self.buffer.chars[self.position.1][self.position.0].write(ScreenChar {
-                    ascii_character: byte,
+                    cp437_character: byte,
                     color_code: color_code,
                 });
                 self.position.0 += 1;
@@ -232,7 +232,7 @@ impl Writer {
 
     fn clear_row(&mut self, row: usize) {
         let blank = ScreenChar {
-            ascii_character: b'\0',
+            cp437_character: b'\0',
             color_code: ColorCode::new(Color::LightGray, Color::Black),
         };
         for col in 0..BUFFER_WIDTH {
@@ -264,7 +264,7 @@ impl Writer {
 
             let color_code = ColorCode::new(Color::LightGray, Color::Black);
             self.buffer.chars[self.position.1][self.position.0].write(ScreenChar {
-                ascii_character: b'\0',
+                cp437_character: b'\0',
                 color_code: color_code,
             });
             
@@ -301,12 +301,12 @@ impl Writer {
     #[cfg(feature="random")]
     fn random_line<R: Rng>(&mut self, row: usize, rng: &mut R) {
         for col in 0..BUFFER_WIDTH {
-            let ascii_character: u8 = rng.gen();
+            let cp437_character: u8 = rng.gen();
             let foreground: Color = rng.gen();
             let background: Color = rng.gen();
 
             let char = ScreenChar {
-                ascii_character: ascii_character as u8,
+                cp437_character: cp437_character as u8,
                 color_code: ColorCode::new(foreground, background),
             };
             self.buffer.chars[row][col].write(char);
@@ -321,59 +321,75 @@ impl Writer {
         self.set_cursor_position(0, 0);
     }
 
-    pub fn draw_window_frame(&mut self, origin:(usize,usize), size:(usize,usize)) {
+    fn write_screen_char_at_position(&mut self, screen_char: ScreenChar, x: usize, y: usize) {
+        if x < BUFFER_WIDTH && y < BUFFER_HEIGHT {
+            self.buffer.chars[y][x].write(screen_char);
+        }
+    }
+
+    pub fn draw_window_frame(&mut self, origin_x: usize, origin_y: usize, width: usize, height: usize) {
         let color_code = ColorCode::new(self.foreground, self.background);
 
         //northwest
-        self.buffer.chars[origin.1][origin.0].write(ScreenChar {
-            ascii_character: 201,
-            color_code: color_code,
-        });
+        self.write_screen_char_at_position(ScreenChar {
+            cp437_character: 201,//╔
+            color_code,
+        }, origin_x, origin_y);
 
-        //northeast
-        self.buffer.chars[origin.1][origin.0+size.0-1].write(ScreenChar {
-            ascii_character: 187,
-            color_code: color_code,
-        });
-
-        //southwest
-        self.buffer.chars[origin.1+size.1-1][origin.0].write(ScreenChar {
-            ascii_character: 200,
-            color_code: color_code,
-        });
-
-        //southeast
-        self.buffer.chars[origin.1+size.1-1][origin.0+size.0-1].write(ScreenChar {
-            ascii_character: 188,
-            color_code: color_code,
-        });
-
-        for col in origin.0+1..size.0 {
-            //north
-            self.buffer.chars[origin.1][col].write(ScreenChar {
-                ascii_character: 205,
-                color_code: color_code,
-            });
-
-            //south
-            self.buffer.chars[origin.1+size.1-1][col].write(ScreenChar {
-                ascii_character: 205,
-                color_code: color_code,
-            });
+        if origin_x + width > 0 {
+            //northeast
+            self.write_screen_char_at_position(ScreenChar {
+                cp437_character: 187,//╗
+                color_code,
+            }, origin_x + width - 1, origin_y);
         }
 
-        for row in origin.1+1..size.1 {
-            //west
-            self.buffer.chars[row][origin.0].write(ScreenChar {
-                ascii_character: 186,
-                color_code: color_code,
-            });
+        //southwest
+        if origin_y + height > 0 {
+            self.write_screen_char_at_position(ScreenChar {
+                cp437_character: 200,//╚
+                color_code,
+            }, origin_x, origin_y + height - 1);
+        }
 
-            //east
-            self.buffer.chars[row][origin.0+size.0-1].write(ScreenChar {
-                ascii_character: 186,
-                color_code: color_code,
-            });
+        //southeast
+        if origin_x + width > 0 && origin_y + height > 0 {
+            self.write_screen_char_at_position(ScreenChar {
+                cp437_character: 188,//╝
+                color_code,
+            }, origin_x + width - 1, origin_y + height - 1);
+        }
+        
+        if width > 0 {
+            for col_offset in 1..width-1 {
+                //north
+                self.write_screen_char_at_position(ScreenChar {
+                    cp437_character: 205,
+                    color_code,
+                }, origin_x + col_offset, origin_y);
+
+                //south
+                self.write_screen_char_at_position(ScreenChar {
+                    cp437_character: 205,
+                    color_code,
+                }, origin_x + col_offset, origin_y + height - 1);
+            }
+        }
+
+        if height > 0 {
+            for row_offset in 1..height-1 {
+                //west
+                self.write_screen_char_at_position(ScreenChar {
+                    cp437_character: 186,
+                    color_code,
+                }, origin_x, origin_y + row_offset);
+
+                //east
+                self.write_screen_char_at_position(ScreenChar {
+                    cp437_character: 186,
+                    color_code,
+                }, origin_x + width - 1, origin_y + row_offset);
+            }
         }
     }
 }
@@ -454,9 +470,9 @@ pub fn chars() {
     });
 }
 
-pub fn draw_window_frame(origin:(usize,usize), size:(usize,usize)) {
+pub fn draw_window_frame(origin_x: usize, origin_y: usize, width: usize, height: usize) {
     interrupts::without_interrupts(|| {
-        WRITER.lock().draw_window_frame(origin, size);
+        WRITER.lock().draw_window_frame(origin_x, origin_y, width, height);
     });
 }
 
@@ -478,6 +494,6 @@ fn test_println_output() {
     println!("{}", s);
     for (i, c) in s.chars().enumerate() {
         let screen_char = WRITER.lock().buffer.chars[BUFFER_HEIGHT - 2][i].read();
-        assert_eq!(char::from(screen_char.ascii_character), c);
+        assert_eq!(char::from(screen_char.cp437_character), c);
     }
 }

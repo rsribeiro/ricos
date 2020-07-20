@@ -4,12 +4,40 @@ use crate::{
     vga_buffer::{self, Color},
     print,
     println,
-    error_println
+    eprintln
 };
 use alloc::{
     string::String,
     vec::Vec
 };
+use core::{fmt, num::ParseIntError};
+
+#[derive(Debug)]
+pub enum CommandError {
+    WrongNumberOfArguments(u8),
+    ColorArgumentExpected,
+    NumericArgumentExpected,
+    InvalidCommand
+}
+
+type CommandResult = Result<(),CommandError>;
+
+impl From<ParseIntError> for CommandError {
+    fn from(_: ParseIntError) -> Self {
+        CommandError::NumericArgumentExpected
+    }
+}
+
+impl fmt::Display for CommandError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::WrongNumberOfArguments(n_args) => write!(f, "{} arguments expected.", n_args),
+            Self::ColorArgumentExpected => write!(f, "Color name arguments expected."),
+            Self::NumericArgumentExpected => write!(f, "Numeric arguments expected."),
+            Self::InvalidCommand => write!(f, "Invalid command.")
+        }
+    }
+}
 
 pub static COMMAND_PROCESSOR: Mutex<CommandProcessor> = Mutex::new(CommandProcessor::new());
 
@@ -60,7 +88,7 @@ impl CommandProcessor {
                 KeyCode::F10 => {},
                 KeyCode::F11 => {},
                 KeyCode::F12 => {},
-                _ => print!("keycode {:?}", key)
+                _ => log::info!("keycode {:?}", key)
             }
         }
     }
@@ -76,12 +104,14 @@ impl CommandProcessor {
     fn finish_command(&mut self) {
         if !self.command_buffer.is_empty() {
             let command: String = self.command_buffer.iter().collect();
-            self.process_command(&command);
+            if let Err(err) = self.process_command(&command) {
+                eprintln!("Error: {}", err);
+            }
             self.command_buffer.clear();
         }
     }
 
-    fn process_command(&self, command: &str) {
+    fn process_command(&self, command: &str) -> CommandResult {
         let mut args = command.split_ascii_whitespace();
         if let Some(command)  = args.next() {
             let args: Vec<&str> = args.collect();
@@ -91,24 +121,20 @@ impl CommandProcessor {
 
             match command {
                 "help" => self.help(),
-                "uptime" => println!("System uptime is {:?}", crate::time::get_system_uptime()),
-                "color" => {
-                    if args.len() == 2 {
-                        let foreground = Color::from_string(args[0]);
-                        let background = Color::from_string(args[1]);
-
-                        if let (Some(foreground), Some(background)) = (foreground, background) {
-                            vga_buffer::set_color(foreground, background);
-                        } else {
-                            error_println!("Error parsing colors {:?} or {:?}.", args[0], args[1]);
-                        }
-                    } else {
-                        error_println!("Command 'color' expects two arguments.");
-                    }
+                "uptime" => {
+                    println!("System uptime is {:?}", crate::time::get_system_uptime());
+                    Ok(())
                 },
-                "clear"=> crate::vga_buffer::clear(),
+                "color" => self.set_colors(args),
+                "clear"=> {
+                    crate::vga_buffer::clear();
+                    Ok(())
+                },
                 #[cfg(feature="pc-speaker")]
-                "beep" => crate::pc_speaker::beep(),
+                "beep" => {
+                    crate::pc_speaker::beep();
+                    Ok(())
+                },
                 "panic" => {
                     if args.is_empty() {
                         panic!();
@@ -127,16 +153,42 @@ impl CommandProcessor {
                     println!("áíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐");
                     println!("└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀");
                     println!("αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\u{00a0}");
+                    Ok(())
                 },
-                "chars2" => crate::vga_buffer::chars(),
-                // "test"=> { },
-                "window" => vga_buffer::draw_window_frame((1,1),(10,5)),
-                _ => error_println!("Command '{}' not recognized.", command)
-            }
+                "chars2" => {
+                    crate::vga_buffer::chars();
+                    Ok(())
+                },
+                "window" => self.draw_window_frame(args),
+                _ => Err(CommandError::InvalidCommand)
+            }?;
+        }
+        Ok(())
+    }
+
+    fn set_colors(&self, args: Vec<&str>) -> CommandResult {
+        let colors= args.iter().map(|arg| Color::from_string(arg)).collect::<Option<Vec<_>>>().ok_or(CommandError::ColorArgumentExpected)?;
+
+        if colors.len() == 2 {
+            vga_buffer::set_color(colors[0], colors[1]);
+            Ok(())
+        } else {
+            Err(CommandError::WrongNumberOfArguments(2))
         }
     }
 
-    fn help(&self) {
+    fn draw_window_frame(&self, args: Vec<&str>) -> CommandResult {
+        let args = args.iter().map(|a| a.parse::<usize>()).collect::<Result<Vec<_>,_>>()?;
+        
+        if args.len() == 4 {
+            vga_buffer::draw_window_frame(args[0], args[1], args[2], args[3]);
+            Ok(())
+        } else {
+            Err(CommandError::WrongNumberOfArguments(4))
+        }
+    }
+
+    fn help(&self) -> CommandResult {
         println!("╓──────────────────────────────────────────────────────────────────────────────┐");
         println!("║                               List of Commands                               │");
         println!("╟──────────────────────────────────────────────────────────────────────────────┤");
@@ -148,5 +200,6 @@ impl CommandProcessor {
         println!("║* panic [reason]: panics with optional reason                                 │");
         println!("║* exit/quit/shutdown: shuts down the computer                                 │");
         println!("╚══════════════════════════════════════════════════════════════════════════════╛");
+        Ok(())
     }
 }

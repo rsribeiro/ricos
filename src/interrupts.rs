@@ -3,7 +3,7 @@ use x86_64::structures::idt::{
     InterruptStackFrame,
     PageFaultErrorCode
 };
-use crate::{println, error_println, gdt, hlt_loop, time, task::sleep};
+use crate::{println, eprintln, gdt, hlt_loop, time, task::sleep};
 use lazy_static::lazy_static;
 use pic8259_simple::ChainedPics;
 use spin;
@@ -140,10 +140,10 @@ extern "x86-interrupt" fn page_fault_handler(
 ) {
     use x86_64::registers::control::Cr2;
 
-    error_println!("EXCEPTION: PAGE FAULT");
-    error_println!("Accessed Address: {:?}", Cr2::read());
-    error_println!("Error Code: {:?}", error_code);
-    error_println!("{:#?}", stack_frame);
+    eprintln!("EXCEPTION: PAGE FAULT");
+    eprintln!("Accessed Address: {:?}", Cr2::read());
+    eprintln!("Error Code: {:?}", error_code);
+    eprintln!("{:#?}", stack_frame);
     hlt_loop();
 }
 
