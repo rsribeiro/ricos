@@ -1,48 +1,58 @@
 use spin::Mutex;
 use pc_keyboard::{DecodedKey, KeyCode};
 use crate::{
-    vga_buffer::{self, Color},
+    vga_buffer,
     print,
     println,
-    eprintln
+    eprintln,
+    error::Error
 };
 use alloc::{
+    str::FromStr, 
     string::String,
     vec::Vec
 };
-use core::{fmt, num::ParseIntError};
-
-#[derive(Debug)]
-pub enum CommandError {
-    WrongNumberOfArguments(u8),
-    ColorArgumentExpected,
-    NumericArgumentExpected,
-    InvalidCommand
-}
-
-type CommandResult = Result<(),CommandError>;
-
-impl From<ParseIntError> for CommandError {
-    fn from(_: ParseIntError) -> Self {
-        CommandError::NumericArgumentExpected
-    }
-}
-
-impl fmt::Display for CommandError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::WrongNumberOfArguments(n_args) => write!(f, "{} arguments expected.", n_args),
-            Self::ColorArgumentExpected => write!(f, "Color name arguments expected."),
-            Self::NumericArgumentExpected => write!(f, "Numeric arguments expected."),
-            Self::InvalidCommand => write!(f, "Invalid command.")
-        }
-    }
-}
 
 pub static COMMAND_PROCESSOR: Mutex<CommandProcessor> = Mutex::new(CommandProcessor::new());
 
 pub struct CommandProcessor {
     command_buffer: Vec<char>
+}
+
+enum Command {
+    Help,
+    Uptime,
+    Color,
+    Clear,
+    Beep,
+    Chars,
+    Chars2,
+    Window,
+    Echo,
+    Panic,
+    Exit,
+}
+
+impl FromStr for Command {
+    type Err = Error;
+
+    fn from_str(command: &str) -> Result<Self, Self::Err> {
+        match command {
+            "help" => Ok(Self::Help),
+            "uptime" => Ok(Self::Uptime),
+            "color" => Ok(Self::Color),
+            "clear" => Ok(Self::Clear),
+            #[cfg(feature="pc-speaker")]
+            "beep" => Ok(Self::Beep),
+            "chars" => Ok(Self::Chars),
+            "chars2" => Ok(Self::Chars2),
+            "window" => Ok(Self::Window),
+            "echo" => Ok(Self::Echo),
+            "panic" => Ok(Self::Panic),
+            "exit"|"quit"|"shutdown" => Ok(Self::Exit),
+            _ => Err(Error::InvalidCommand)
+        }
+    }
 }
 
 impl CommandProcessor {
@@ -111,39 +121,23 @@ impl CommandProcessor {
         }
     }
 
-    fn process_command(&self, command: &str) -> CommandResult {
-        let mut args = command.split_ascii_whitespace();
+    fn process_command(&self, original_command: &str) -> Result<(),Error> {
+        let mut args = original_command.split_ascii_whitespace();
         if let Some(command)  = args.next() {
+            if original_command.find(command).unwrap() > 0 {
+                return Err(Error::InvalidCommand);
+            }
+            let command = command.parse::<Command>()?;
             let args: Vec<&str> = args.collect();
 
-            log::trace!("command={:?}", command);
-            log::trace!("args={:?}", args);
-
             match command {
-                "help" => self.help(),
-                "uptime" => {
-                    println!("System uptime is {:?}", crate::time::get_system_uptime());
-                    Ok(())
-                },
-                "color" => self.set_colors(args),
-                "clear"=> {
-                    crate::vga_buffer::clear();
-                    Ok(())
-                },
+                Command::Help => self.help(),
+                Command::Uptime => Ok(println!("System uptime is {:#?}", crate::time::get_system_uptime())),
+                Command::Color => self.set_colors(args),
+                Command::Clear => Ok(crate::vga_buffer::clear()),
                 #[cfg(feature="pc-speaker")]
-                "beep" => {
-                    crate::pc_speaker::beep();
-                    Ok(())
-                },
-                "panic" => {
-                    if args.is_empty() {
-                        panic!();
-                    } else {
-                        panic!("{}", args.join(" "));
-                    }
-                },
-                "exit" | "quit" | "shutdown" => crate::exit(),
-                "chars" => {
+                Command::Beep => Ok(crate::pc_speaker::beep()),
+                Command::Chars => {
                     println!("\u{0000}☺☻♥♦♣♠•◘○\\n♂♀♪♫☼►◄↕‼¶§▬↨↑↓→←∟↔▲▼");
                     // println!("\u{0000}☺☻♥♦♣♠•◘○◙♂♀♪♫☼►◄↕‼¶§▬↨↑↓→←∟↔▲▼");
                     println!("\u{0020}!\"#$%&'()*+,-./0123456789:;<=>?");
@@ -155,40 +149,52 @@ impl CommandProcessor {
                     println!("αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\u{00a0}");
                     Ok(())
                 },
-                "chars2" => {
-                    crate::vga_buffer::chars();
-                    Ok(())
+                Command::Chars2 => Ok(crate::vga_buffer::chars()),
+                Command::Window => self.draw_window_frame(args),
+                Command::Echo => {
+                    let idx = original_command.find("echo").unwrap();
+                    let arg = original_command.split_at(idx+4).1;
+                    Ok(println!("{}", arg))
                 },
-                "window" => self.draw_window_frame(args),
-                _ => Err(CommandError::InvalidCommand)
+                Command::Panic => {
+                    if args.is_empty() {
+                        panic!();
+                    } else {
+                        panic!("{}", args.join(" "));
+                    }
+                },
+                Command::Exit => crate::exit()
             }?;
         }
         Ok(())
     }
 
-    fn set_colors(&self, args: Vec<&str>) -> CommandResult {
-        let colors= args.iter().map(|arg| Color::from_string(arg)).collect::<Option<Vec<_>>>().ok_or(CommandError::ColorArgumentExpected)?;
+    fn set_colors(&self, args: Vec<&str>) -> Result<(),Error> {
+        let colors= args.iter().map(|arg| arg.parse()).collect::<Result<Vec<_>,_>>()?;
 
         if colors.len() == 2 {
             vga_buffer::set_color(colors[0], colors[1]);
             Ok(())
+        } else if colors.is_empty() {
+            println!("Available colors: Black, Blue, Green, Cyan, Red, Magenta, Brown, LightGray, DarkGray, LightBlue, LightGreen, LightCyan, LightRed, Pink, Yellow, White");
+            Ok(())
         } else {
-            Err(CommandError::WrongNumberOfArguments(2))
+            Err(Error::WrongNumberOfArguments(2))
         }
     }
 
-    fn draw_window_frame(&self, args: Vec<&str>) -> CommandResult {
-        let args = args.iter().map(|a| a.parse::<usize>()).collect::<Result<Vec<_>,_>>()?;
+    fn draw_window_frame(&self, args: Vec<&str>) -> Result<(),Error> {
+        let args = args.iter().map(|arg| arg.parse()).collect::<Result<Vec<_>,_>>()?;
         
         if args.len() == 4 {
             vga_buffer::draw_window_frame(args[0], args[1], args[2], args[3]);
             Ok(())
         } else {
-            Err(CommandError::WrongNumberOfArguments(4))
+            Err(Error::WrongNumberOfArguments(4))
         }
     }
 
-    fn help(&self) -> CommandResult {
+    fn help(&self) -> Result<(),Error> {
         println!("╓──────────────────────────────────────────────────────────────────────────────┐");
         println!("║                               List of Commands                               │");
         println!("╟──────────────────────────────────────────────────────────────────────────────┤");
@@ -197,6 +203,10 @@ impl CommandProcessor {
         println!("║* color foreground background: changes screen colors                          │");
         #[cfg(feature="pc-speaker")]
         println!("║* beep: beeps pc speaker                                                      │");
+        println!("║* window origin_x origin_y width height: draws window frame                   │");
+        println!("║* chars: prints all characters                                                │");
+        println!("║* chars2: prints all characters                                               │");
+        println!("║* clear: clears the screen buffer                                             │");
         println!("║* panic [reason]: panics with optional reason                                 │");
         println!("║* exit/quit/shutdown: shuts down the computer                                 │");
         println!("╚══════════════════════════════════════════════════════════════════════════════╛");

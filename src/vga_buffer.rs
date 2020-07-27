@@ -6,6 +6,8 @@ use x86_64::instructions::{
     interrupts,
     port::Port
 };
+use alloc::str::FromStr;
+use crate::error::Error;
 
 #[cfg(feature="random")]
 use rand::{
@@ -61,26 +63,28 @@ pub enum Color {
     White = 15,
 }
 
-impl Color {
-    pub fn from_string(color: &str) -> Option<Color> {
+impl FromStr for Color {
+    type Err = Error;
+
+    fn from_str(color: &str) -> Result<Self, Self::Err> {
         match color.to_lowercase().as_str() {
-            "black" => Some(Color::Black),
-            "blue" => Some(Color::Blue),
-            "green" => Some(Color::Green),
-            "cyan" => Some(Color::Cyan),
-            "red" => Some(Color::Red),
-            "magenta" => Some(Color::Magenta),
-            "brown" => Some(Color::Brown),
-            "lightgray" => Some(Color::LightGray),
-            "darkgray" => Some(Color::DarkGray),
-            "lightblue" => Some(Color::LightBlue),
-            "lightgreen" => Some(Color::LightGreen),
-            "lightcyan" => Some(Color::LightCyan),
-            "lightred" => Some(Color::LightRed),
-            "pink" => Some(Color::Pink),
-            "yellow" => Some(Color::Yellow),
-            "white" => Some(Color::White),
-            _ => None
+            "black" => Ok(Color::Black),
+            "blue" => Ok(Color::Blue),
+            "green" => Ok(Color::Green),
+            "cyan" => Ok(Color::Cyan),
+            "red" => Ok(Color::Red),
+            "magenta" => Ok(Color::Magenta),
+            "brown" => Ok(Color::Brown),
+            "lightgray" => Ok(Color::LightGray),
+            "darkgray" => Ok(Color::DarkGray),
+            "lightblue" => Ok(Color::LightBlue),
+            "lightgreen" => Ok(Color::LightGreen),
+            "lightcyan" => Ok(Color::LightCyan),
+            "lightred" => Ok(Color::LightRed),
+            "pink" => Ok(Color::Pink),
+            "yellow" => Ok(Color::Yellow),
+            "white" => Ok(Color::White),
+            _ => Err(Error::ColorParseError)
         }
     }
 }

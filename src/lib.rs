@@ -24,6 +24,7 @@ pub mod time;
 pub mod command;
 pub mod logging;
 pub mod encoding;
+pub mod error;
 
 #[cfg(feature="pc-speaker")]
 pub mod pc_speaker;
