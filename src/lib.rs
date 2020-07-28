@@ -24,6 +24,7 @@ pub mod time;
 pub mod command;
 pub mod logging;
 pub mod encoding;
+pub mod error;
 
 #[cfg(feature="pc-speaker")]
 pub mod pc_speaker;
@@ -40,6 +41,7 @@ entry_point!(test_kernel_main);
 /// Entry point for `cargo xtest`
 #[cfg(test)]
 fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {
+    logging::init(log::LevelFilter::Trace).unwrap();
     init();
     test_main();
     hlt_loop()
@@ -114,7 +116,7 @@ pub fn exit_qemu(exit_code: QemuExitCode) {
     unsafe { port.write(exit_code as u32); }
 }
 
-pub fn exit() {
+pub fn exit() -> ! {
     // https://wiki.osdev.org/Shutdown
     log::trace!("trying to shutdown assuming QEMU");
     unsafe { Port::<u16>::new(0x604).write(0x2000) };
@@ -125,5 +127,5 @@ pub fn exit() {
     log::trace!("trying to shutdown assuming VirtualBox");
     unsafe { Port::<u16>::new(0x4004).write(0x3400) };
 
-    error_println!("Shutdown failed");
+    panic!("Shutdown failed")
 }

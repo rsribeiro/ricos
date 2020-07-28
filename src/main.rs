@@ -75,8 +75,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    blog_os::error_println!("{}", info);
     log::error!("{}", info);
+    blog_os::eprintln!("{}", info);
     blog_os::hlt_loop()
 }
 
