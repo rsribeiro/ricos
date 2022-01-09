@@ -93,7 +93,7 @@ impl FromStr for Color {
 impl Distribution<Color> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Color {
         use Color::*;
-        match rng.gen_range(0, 15) {
+        match rng.gen_range(0..=15) {
             0 => Blue,
             1 => Green,
             2 => Cyan,

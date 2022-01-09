@@ -5,7 +5,7 @@ use x86_64::structures::idt::{
 };
 use crate::{println, eprintln, gdt, hlt_loop, time, task::sleep};
 use lazy_static::lazy_static;
-use pic8259_simple::ChainedPics;
+use pic8259::ChainedPics;
 use spin;
 use core::time::Duration;
 
@@ -73,13 +73,13 @@ impl InterruptIndex {
 }
 
 extern "x86-interrupt" fn breakpoint_handler(
-    stack_frame: &mut InterruptStackFrame)
+    stack_frame: InterruptStackFrame)
 {
     println!("EXCEPTION: BREAKPOINT\n{:#?}", stack_frame);
 }
 
 extern "x86-interrupt" fn double_fault_handler(
-    stack_frame: &mut InterruptStackFrame, _error_code: u64) -> !
+    stack_frame: InterruptStackFrame, _error_code: u64) -> !
 {
     panic!("EXCEPTION: DOUBLE FAULT\n{:#?}", stack_frame);
 }
@@ -87,7 +87,7 @@ extern "x86-interrupt" fn double_fault_handler(
 const PIT_RATE: Duration = Duration::from_nanos(54_925_400);
 
 extern "x86-interrupt" fn timer_interrupt_handler(
-    _stack_frame: &mut InterruptStackFrame)
+    _stack_frame: InterruptStackFrame)
 {
     time::system_clock_tick(PIT_RATE);
     sleep::sleep_task_tick(PIT_RATE);
@@ -100,7 +100,7 @@ extern "x86-interrupt" fn timer_interrupt_handler(
 }
 
 extern "x86-interrupt" fn keyboard_interrupt_handler(
-    _stack_frame: &mut InterruptStackFrame)
+    _stack_frame: InterruptStackFrame)
 {
     // log::trace!("keyboard interrupt");
 
@@ -118,7 +118,7 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(
 
 #[cfg(feature="mouse")]
 extern "x86-interrupt" fn mouse_interrupt_handler(
-    _stack_frame: &mut InterruptStackFrame)
+    _stack_frame: InterruptStackFrame)
 {
     // log::trace!("mouse interrupt");
 
@@ -135,7 +135,7 @@ extern "x86-interrupt" fn mouse_interrupt_handler(
 }
 
 extern "x86-interrupt" fn page_fault_handler(
-    stack_frame: &mut InterruptStackFrame,
+    stack_frame: InterruptStackFrame,
     error_code: PageFaultErrorCode,
 ) {
     use x86_64::registers::control::Cr2;

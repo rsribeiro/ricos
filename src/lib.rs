@@ -4,11 +4,8 @@
 #![reexport_test_harness_main = "test_main"]
 #![feature(abi_x86_interrupt)]
 #![feature(alloc_error_handler)]
-#![feature(const_fn)]
-#![feature(const_in_array_repeat_expressions)]
+#![feature(const_mut_refs)]
 #![feature(custom_test_frameworks)]
-#![feature(wake_trait)]
-#![feature(clamp)]
 
 extern crate alloc;
 extern crate rlibc;

@@ -42,3 +42,9 @@ impl Task {
         self.future.as_mut().poll(context)
     }
 }
+
+impl core::fmt::Debug for Task {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Task").field("id", &self.id).finish()
+    }
+}

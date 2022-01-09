@@ -52,17 +52,17 @@ impl Stream for MousePacketStream {
             .try_get()
             .expect("mouse state queue not initialized");
 
-        if let Ok(packet) = queue.pop() {
+        if let Some(packet) = queue.pop() {
             return Poll::Ready(Some(packet));
         }
 
         WAKER.register(&cx.waker());
         match queue.pop() {
-            Ok(packet) => {
+            Some(packet) => {
                 WAKER.take();
                 Poll::Ready(Some(packet))
             }
-            Err(crossbeam_queue::PopError) => Poll::Pending,
+            None => Poll::Pending,
         }
     }
 }

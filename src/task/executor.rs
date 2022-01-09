@@ -30,7 +30,7 @@ impl Executor {
             waker_cache,
         } = self;
 
-        while let Ok(task_id) = task_queue.pop() {
+        while let Some(task_id) = task_queue.pop() {
             let task = match tasks.get_mut(&task_id) {
                 Some(task) => task,
                 None => continue, // task no longer exists
@@ -59,7 +59,7 @@ impl Executor {
     }
 
     fn spawn_new_tasks(&mut self) {
-        while let Ok(task) = self.shared_task_queue.pop() {
+        while let Some(task) = self.shared_task_queue.pop() {
             let task_id = task.id;
             if self.tasks.insert(task.id, task).is_some() {
                 panic!("task with same ID already in tasks");
@@ -69,11 +69,11 @@ impl Executor {
     }
 
     fn sleep_if_idle(&self) {
-        use x86_64::instructions::interrupts::{self, enable_interrupts_and_hlt};
+        use x86_64::instructions::interrupts::{self, enable_and_hlt};
 
         interrupts::disable();
         if self.task_queue.is_empty() {
-            enable_interrupts_and_hlt();
+            enable_and_hlt();
         } else {
             interrupts::enable();
         }
