@@ -13,7 +13,7 @@ name = "stack_overflow"
 harness = false
 
 [features]
-default = ["pc-speaker", "acpi-feat"]
+default = ["acpi-feat"]
 random = ["rand"]
 mouse = ["ps2-mouse", "spinning_top"]
 pc-speaker = []
