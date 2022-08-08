@@ -12,14 +12,14 @@ pub fn get_system_uptime() -> Duration {
     *SYSTEM_CLOCK.lock()
 }
 
-#[test_case]
-fn test_system_clock() {
-    let t0 = get_system_uptime();
-    log::trace!("t0 = {:?}", t0);
-    let mut t = get_system_uptime();
-    log::trace!("t = {:?}", t);
-    while t == t0 {
-        t = get_system_uptime();
-        log::debug!("t = {:?}", t);
-    }
-}
+// #[test_case]
+// fn test_system_clock() {
+//     let t0 = get_system_uptime();
+//     log::trace!("t0 = {:?}", t0);
+//     let mut t = get_system_uptime();
+//     log::trace!("t = {:?}", t);
+//     while t == t0 {
+//         t = get_system_uptime();
+//         // log::debug!("t = {:?}", t);
+//     }
+// }
