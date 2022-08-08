@@ -6,11 +6,14 @@
         "type": "shell",
         "osx": {
             "command": "tmux new-session -d -s osdev && tmux send-keys 'cargo run -- -s -S' C-m"
-            // "command": "cargo run -- -s -S"
+        },
+        "windows": {
+          "command": "cargo",
+          "args": [ "run", "--", "-s", "-S" ]
         },
         "options": {
           "cwd": "${workspaceFolder}/"
-        }
+        },
       },
       {
         "label": "Close QEMU",
@@ -18,11 +21,14 @@
         "osx": {
           "command": "tmux kill-session -t osdev"
         },
+        "windows": {
+          "command": "",
+          "hide": true
+        },
         "options": {
           "cwd": "${workspaceFolder}/"
         }
       }
     ]
   }
-  
-  
+

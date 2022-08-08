@@ -8,44 +8,39 @@
         "targetCreateCommands": ["target create ${workspaceRoot}/target/x86_64-blog_os/debug/blog_os"],
         "processCreateCommands": ["gdb-remote localhost:1234"],
         "sourceLanguages": ["rust"],
-        "sourceMap": {
-          "/rustc/*": "${env:HOME}/.rustup/toolchains/nightly-x86_64-apple-darwin/lib/rustlib/src/rust"
-        },
         "preLaunchTask": "Launch QEMU",
-        "postDebugTask": "Close QEMU"
+        "osx": {
+          "sourceMap": {
+            "/rustc/*": "${env:HOME}/.rustup/toolchains/nightly-x86_64-apple-darwin/lib/rustlib/src/rust"
+          },
+          "postDebugTask": "Close QEMU"
+        },
+        "windows": {
+          "presentation": {
+            "hidden": true
+          },
+          "sourceMap": {
+            "/rustc/*": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+          },
+        }
       },
-      // {
-      //   "name": "Launch with GDB",
-      //   "type": "cppdbg",
-      //   "request": "launch",
-      //   "program": "${workspaceRoot}/target/x86_64-blog_os/debug/blog_os",
-      //   "cwd": "${workspaceRoot}",
-      //   "args": [],
-      //   "targetArchitecture": "x64",
-      //   "MIMode": "gdb",
-      //   "osx": {
-      //     "miDebuggerPath": "/opt/local/bin/ggdb"
-      //   },
-      //   "miDebuggerArgs": "",
-      //   "customLaunchSetupCommands": [
-      //     {
-      //       "text": "target remote localhost:1234",
-      //       "description": "Connect to QEMU remote debugger"
-      //     }
-      //   ],
-      //   "setupCommands": [
-      //     {
-      //       "description": "Enable pretty-printing for gdb",
-      //       "text": "-enable-pretty-printing",
-      //       "ignoreFailures": true
-      //     },
-      //     {
-      //       "text": "file ${workspaceRoot}/target/x86_64-blog_os/debug/blog_os",
-      //       "description": "Load binary"
-      //     }
-      //   ],
-      //   "preLaunchTask": "Launch QEMU",
-      //   "postDebugTask": "Close QEMU"
-      // }
+      {
+        "name": "Attach with LLDB",
+        "type": "lldb",
+        "request": "custom",
+        "targetCreateCommands": ["target create ${workspaceRoot}/target/x86_64-blog_os/debug/blog_os"],
+        "processCreateCommands": ["gdb-remote localhost:1234"],
+        "sourceLanguages": ["rust"],
+        "osx": {
+          "sourceMap": {
+            "/rustc/*": "${env:HOME}/.rustup/toolchains/nightly-x86_64-apple-darwin/lib/rustlib/src/rust"
+          },
+        },
+        "windows": {
+          "sourceMap": {
+            "/rustc/*": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+          },
+        }
+      }
     ]
   }
