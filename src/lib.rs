@@ -22,6 +22,8 @@ pub mod command;
 pub mod logging;
 pub mod encoding;
 pub mod error;
+#[cfg(feature="acpi-feat")]
+pub mod acpi;
 
 #[cfg(feature="pc-speaker")]
 pub mod pc_speaker;
@@ -47,7 +49,7 @@ fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {
 pub fn init() {
     #[cfg(feature="mouse")]
     task::mouse::init();
-    
+
     gdt::init();
     interrupts::init_idt();
     unsafe { interrupts::PICS.lock().initialize() };
@@ -115,13 +117,22 @@ pub fn exit_qemu(exit_code: QemuExitCode) {
 
 pub fn exit() -> ! {
     // https://wiki.osdev.org/Shutdown
-    log::trace!("trying to shutdown assuming QEMU");
-    unsafe { Port::<u16>::new(0x604).write(0x2000) };
 
-    log::trace!("trying to shutdown assuming BOCHS");
+    #[cfg(feature="acpi-feat")]
+    if let Some((port, value)) = acpi::get_shutdown_info() {
+        log::debug!("Trying to shutdown using ACPI");
+        unsafe { Port::<u16>::new(port).write(value) };
+    } else {
+        log::error!("Couldn't shut down using ACPI");
+    }
+
+    log::debug!("Trying to shutdown assuming QEMU");
+    unsafe { Port::<u16>::new(0x0604).write(0x2000) };
+
+    log::debug!("Trying to shutdown assuming BOCHS");
     unsafe { Port::<u16>::new(0xB004).write(0x2000) };
 
-    log::trace!("trying to shutdown assuming VirtualBox");
+    log::debug!("trying to shutdown assuming VirtualBox");
     unsafe { Port::<u16>::new(0x4004).write(0x3400) };
 
     panic!("Shutdown failed")

@@ -8,10 +8,12 @@ use crate::{
     error::Error
 };
 use alloc::{
-    str::FromStr, 
+    str::FromStr,
     string::String,
     vec::Vec
 };
+#[cfg(feature="acpi-feat")]
+use crate::acpi;
 
 pub static COMMAND_PROCESSOR: Mutex<CommandProcessor> = Mutex::new(CommandProcessor::new());
 
@@ -24,6 +26,7 @@ enum Command {
     Uptime,
     Color,
     Clear,
+    #[cfg(feature="pc-speaker")]
     Beep,
     Chars,
     Chars2,
@@ -31,6 +34,8 @@ enum Command {
     Echo,
     Panic,
     Exit,
+    #[cfg(feature="acpi-feat")]
+    AcpiShutdownInfo
 }
 
 impl FromStr for Command {
@@ -50,6 +55,8 @@ impl FromStr for Command {
             "echo" => Ok(Self::Echo),
             "panic" => Ok(Self::Panic),
             "exit"|"quit"|"shutdown" => Ok(Self::Exit),
+            #[cfg(feature="acpi-feat")]
+            "acpi-shutdown-info" => Ok(Self::AcpiShutdownInfo),
             _ => Err(Error::InvalidCommand)
         }
     }
@@ -163,7 +170,16 @@ impl CommandProcessor {
                         panic!("{}", args.join(" "));
                     }
                 },
-                Command::Exit => crate::exit()
+                Command::Exit => crate::exit(),
+                #[cfg(feature="acpi-feat")]
+                Command::AcpiShutdownInfo => {
+                    if let Some((port,value)) = acpi::get_shutdown_info() {
+                        println!("acpi_shutdown_info: port=0x{:04x}, value=0x{:04x}", port, value);
+                    } else {
+                        eprintln!("Acpi shutdown info not found.");
+                    }
+                    Ok(())
+                }
             }?;
         }
         Ok(())
@@ -185,7 +201,7 @@ impl CommandProcessor {
 
     fn draw_window_frame(&self, args: Vec<&str>) -> Result<(),Error> {
         let args = args.iter().map(|arg| arg.parse()).collect::<Result<Vec<_>,_>>()?;
-        
+
         if args.len() == 4 {
             vga_buffer::draw_window_frame(args[0], args[1], args[2], args[3]);
             Ok(())
@@ -209,6 +225,8 @@ impl CommandProcessor {
         println!("║* clear: clears the screen buffer                                             │");
         println!("║* panic [reason]: panics with optional reason                                 │");
         println!("║* exit/quit/shutdown: shuts down the computer                                 │");
+        #[cfg(feature="acpi-feat")]
+        println!("║* acpi-shutdown-info: prints shutdown info from acpi                          │");
         println!("╚══════════════════════════════════════════════════════════════════════════════╛");
         Ok(())
     }
