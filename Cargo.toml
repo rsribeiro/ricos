@@ -13,10 +13,11 @@ name = "stack_overflow"
 harness = false
 
 [features]
-default = ["pc-speaker"]
+default = ["pc-speaker", "acpi-feat"]
 random = ["rand"]
 mouse = ["ps2-mouse", "spinning_top"]
 pc-speaker = []
+acpi-feat = ["acpi", "aml"]
 
 [dependencies]
 bootloader = { version = "0.9.22", features = ["map_physical_memory"] }
@@ -31,6 +32,8 @@ linked_list_allocator = "0.9.1"
 log = "0.4.17"
 ps2-mouse = { version = "0.1.4", optional = true }
 spinning_top = { version = "0.2.4", optional = true }
+acpi = { version = "4.1.1", optional = true }
+aml = { version = "0.16.1", optional = true }
 
 [dependencies.lazy_static]
 version = "1.4.0"

@@ -19,6 +19,9 @@ use blog_os::{
 use x86_64::VirtAddr;
 use log::LevelFilter;
 
+#[cfg(feature="acpi-feat")]
+use blog_os::acpi;
+
 #[cfg(debug_assertions)]
 const LOG_LEVEL: LevelFilter = LevelFilter::Trace;
 
@@ -38,6 +41,12 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     allocator::init_heap(&mut mapper, &mut frame_allocator)
     .expect("heap initialization failed");
+
+    #[cfg(feature="acpi-feat")]
+    match acpi::init_acpi_info(boot_info.physical_memory_offset, false) {
+        Ok(_) => log::info!("ACPI info initialized successfully."),
+        Err(err) => log::error!("error: {:?}", err)
+    }
 
     blog_os::init();
 
